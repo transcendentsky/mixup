@@ -1,0 +1,1 @@
+tensorboard logdir=a:result,old:/me
