@@ -107,3 +107,4 @@ cifar/checkpoint/
 *ckpt*
 cifar/checkpoint/*
 cifar/data/*
+.idea

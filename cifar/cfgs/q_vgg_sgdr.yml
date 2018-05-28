@@ -1,0 +1,35 @@
+MODEL:
+  NET: VGG19
+
+TRAIN:
+  MAX_EPOCHS: 500
+  CHECKPOINTS_EPOCHS: 10
+  BATCH_SIZE: 128 #32
+  OPTIMIZER:
+    OPTIMIZER: sgd
+    BASE_LR: 0.01
+    MOMENTUM: 0.0
+    WEIGHT_DECAY: 0.0005
+  LR_SCHEDULER:
+    SCHEDULER: WR
+#    SCHEDULER: SGDR
+    WARM_UP_EPOCHS: 300
+    WR_TI: 10
+  MIXUP: 'mixup'
+  GA: True
+  TEST_STEP: 1
+  MIXUP: 'mixup'
+
+TEST:
+  BATCH_SIZE: 128
+  TEST_SCOPE: [0, 500]
+
+DATASET:
+  DATASET: 'cifar10'
+
+PHASE: ['train', 'test']
+NUM_RUNS: 10
+
+
+
+# From 280 Epoch, change to swish

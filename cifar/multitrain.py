@@ -30,7 +30,8 @@ from LearningSchedule import *
 
 best_acc = 0  # best test accuracy
 
-def _train():
+
+def single_train(run):
     # print(cfg)
     writer = get_writer()
     torch.manual_seed(cfg.TRAIN.SEED)
@@ -83,7 +84,7 @@ def _train():
     # net = ShuffleNetG2()
     # net = SENet18()
     elif cfg.MODEL.NET == 'WRN':
-        net = wrn(depth=28, num_classes=10,widen_factor=10)
+        net = wrn(depth=28, num_classes=10, widen_factor=10)
     else:
         raise ValueError('No Such Network: {}'.format(cfg.MODEL.NET))
 
@@ -105,15 +106,15 @@ def _train():
     criterion = nn.CrossEntropyLoss()
 
     # optimizer = CustomOpm.SGD(net.parameters(), lr=base_learning_rate, momentum=0.9,
-                              # weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+    # weight_decay=cfg.TRAIN.WEIGHT_DECAY)
     optimizer = CustomOpm.CSGD(net.parameters(), lr=base_learning_rate, momentum=cfg.TRAIN.OPTIMIZER.MOMENTUM,
                                weight_decay=cfg.TRAIN.WEIGHT_DECAY)
-
 
     if cfg.TRAIN.LR_SCHEDULER.SCHEDULER == 'WR':
         sche = CustomLearningRateScheduler_wr(ti=cfg.TRAIN.LR_SCHEDULER.WR_TI, lr_min=0.0001, lr_max=base_learning_rate)
     elif cfg.TRAIN.LR_SCHEDULER.SCHEDULER == 'stage':
-        sche = CustomLearningRateScheduler_staging(ti=cfg.TRAIN.LR_SCHEDULER.WR_TI,lr_min=0.0001, lr_max=base_learning_rate)
+        sche = CustomLearningRateScheduler_staging(ti=cfg.TRAIN.LR_SCHEDULER.WR_TI, lr_min=0.0001,
+                                                   lr_max=base_learning_rate)
     else:
         raise ValueError('Not Implemented {}'.format(cfg.TRAIN.LR_SCHEDULER))
 
@@ -191,25 +192,40 @@ def _train():
             save_checkpoints(epoch, net)
         elif epoch % cfg.TRAIN.CHECKPOINTS_EPOCHS == 0:
             print("Saving Checkpoint, acc = {}".format(acc))
-            save_checkpoints(epoch, net)
+            save_checkpoints(epoch, net, run)
 
         return (test_loss / batch_idx, correct / total)
 
-    for epoch in range(start_epoch, cfg.TRAIN.MAX_EPOCHS):
+    for epoch in range(start_epoch, cfg.TRAIN.SMALL_EPOCHS):
         global global_epoch
         global_epoch = epoch
         is_ga = sche.adjust_learning_rate(optimizer, epoch)
-        # is_ga = True
+        is_ga = False
         # print("[Debug] is_ga True")
         train_loss, train_acc = train(epoch, is_ga)
         test_loss, test_acc = test(epoch)
         # with open(logname, 'a') as logfile:
         #     logwriter = csv.writer(logfile, delimiter=',')
         #     logwriter.writerow([epoch, train_loss, train_acc, test_loss, test_acc])
+        prefix_train = 'Train_' + str(run)
+        prefix_test = 'Test_' + str(run)
+        writer.add_scalar(prefix_test + '/val_loss', test_loss, epoch)
+        writer.add_scalar(prefix_test + '/val_acc', test_acc, epoch)
+        writer.add_scalar(prefix_train + '/loss', train_loss, epoch)
+        writer.add_scalar(prefix_train + '/acc', train_acc, epoch)
 
-        writer.add_scalar('val_loss', test_loss, epoch)
-        writer.add_scalar('val_acc', test_acc, epoch)
-        writer.add_scalar('loss', train_loss, epoch)
-        writer.add_scalar('acc', train_acc, epoch)
+    return train_loss
+
+
+def mtrain():
+    num_runs = cfg.NUM_RUNS
+    losses = np.zeros(num_runs)
+    for i in range(cfg.TRAIN.MAX_EPOCHS // num_runs):
+        for run in range(num_runs):
+            loss = single_train(run)
+            losses[run] = loss
+            GA(losses)
+
+
 
     writer.close()

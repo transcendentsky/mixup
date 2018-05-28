@@ -1,5 +1,6 @@
+from __future__ import print_function
 import numpy as np
-
+from summary import get_writer
 
 def adjust_learning_rate(optimizer, epoch):
     """decrease the learning rate at 100 and 150 epoch"""
@@ -22,6 +23,7 @@ class CustomLearningRateScheduler_staging(object):
         self._lr_min = lr_min
         self._lr_max = lr_max
         self.base = 0
+        self.writer = get_writer()
         print("##########  Using CustomLearningRateScheduler1 : Staging lr Schedule ##########\n")
 
     def adjust_learning_rate(self, optimizer, epoch):
@@ -35,6 +37,7 @@ class CustomLearningRateScheduler_staging(object):
         if epoch >= 150:
             lr /= 10
         print("Learning rate = ", lr)
+        self.writer.add_scalar("Train/Learning rate", lr, epoch)
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
 
@@ -48,6 +51,7 @@ class CustomLearningRateScheduler_wr(object):
         self._lr_min = lr_min
         self._lr_max = lr_max
         self.base = 0
+        self.writer = get_writer()
         print("##########  Using CustomLearningRateScheduler2 : Warm restart ##########\n")
 
     def adjust_learning_rate(self, optimizer, epoch):
@@ -67,6 +71,7 @@ class CustomLearningRateScheduler_wr(object):
 
         ## adjust learning rate
         print("Learning rate = ", lr)
+        self.writer.add_scalar("Train/Learning rate", lr, epoch)
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
 
