@@ -16,7 +16,7 @@ TRAIN:
     WARM_UP_EPOCHS: 300
     WR_TI: 10
   MIXUP: 'mixup'
-  GA: True
+  GA: False
   TEST_STEP: 1
   MIXUP: 'mixup'
 
@@ -29,3 +29,7 @@ DATASET:
 
 PHASE: ['train', 'test']
 NUM_RUNS: 10
+
+
+
+# From 280 Epoch, change to swish

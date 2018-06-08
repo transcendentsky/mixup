@@ -29,9 +29,21 @@ import CustomOpm
 from LearningSchedule import *
 
 best_acc = 0  # best test accuracy
+net = None
+psaver = None
 
 
-def single_train(run):
+def single_train(run, mt=False, training=True, x_max_epoch=150, initializer=None, psa=False, load_bone=False):
+    global net
+    global psaver
+
+    ### Extra Setting ###
+    if x_max_epoch == 0: x_max_epoch = cfg.TRAIN.MAX_EPOCHS
+
+    if net is None:
+        print("[***] net None")
+    else:
+        print("[***] net Already.")
     # print(cfg)
     writer = get_writer()
     torch.manual_seed(cfg.TRAIN.SEED)
@@ -59,22 +71,45 @@ def single_train(run):
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
     ])
+    dataset = cfg.DATASET.DATASET
+    # if run % 1000 == 2: dataset = cfg.DATASET.DATASET
+    # else: dataset = cfg.DATASET.DATASET_PRE
 
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True,
-                                              num_workers=cfg.TRAIN.NUM_WORKERS)
-
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False, num_workers=cfg.TRAIN.NUM_WORKERS)
+    if dataset == 'cifar10':
+        trainset = torchvision.datasets.CIFAR10(root='./data', train=True, download=True, transform=transform_train)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True,
+                                                  num_workers=cfg.TRAIN.NUM_WORKERS)
+        testset = torchvision.datasets.CIFAR10(root='./data', train=False, download=True, transform=transform_test)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
+                                                 num_workers=cfg.TRAIN.NUM_WORKERS)
+    elif dataset == 'fashion-mnist':
+        print("Fashion-MNIST")
+        trainset = torchvision.datasets.FashionMNIST(root='./data', train=True, download=True, transform=transform_train)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True,
+                                                  num_workers=cfg.TRAIN.NUM_WORKERS)
+        testset = torchvision.datasets.FashionMNIST(root='./data', train=False, download=True, transform=transform_test)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
+                                                 num_workers=cfg.TRAIN.NUM_WORKERS)
+    elif dataset == 'cifar100':
+        print("Cifar100")
+        trainset = torchvision.datasets.CIFAR100(root='./data', train=True, download=True,
+                                                     transform=transform_train)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True,
+                                                  num_workers=cfg.TRAIN.NUM_WORKERS)
+        testset = torchvision.datasets.CIFAR100(root='./data', train=False, download=True, transform=transform_test)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=100, shuffle=False,
+                                                 num_workers=cfg.TRAIN.NUM_WORKERS)
 
     classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
     # Networks
     print('==> Building model..')
     if cfg.MODEL.NET == 'VGG19':
-        net = VGG('VGG19')
+        net = VGG('VGG19',out_channel=100)
     elif cfg.MODEL.NET == 'PreRes':
         net = PreActResNet18()
+    elif cfg.MODEL.NET == 'VGG16':
+        net = VGG('VGG16')
     # net = ResNet18()
     # net = GoogLeNet()
     # net = DenseNet121()
@@ -88,20 +123,48 @@ def single_train(run):
     else:
         raise ValueError('No Such Network: {}'.format(cfg.MODEL.NET))
 
-    # Model
-    previous = find_previous()
-    if previous:
-        start_epoch = previous[0][-1]
-        resume_checkpoint(previous[1][-1], net)
-    else:
-        start_epoch = cfg.TRAIN.START_EPOCH
-
+    # print("Architectures:")
+    # print(net)
     if use_cuda:
         net.cuda()
         net = torch.nn.DataParallel(net)
         print('Using', torch.cuda.device_count(), 'GPUs.')
         cudnn.benchmark = True
         print('Using CUDA..')
+
+    # Model
+    previous = find_previous(run)
+    if previous:
+        start_epoch = previous[0][-1] + 1
+        if load_bone:
+            resume_checkpoint(previous[1][-1], net, run, noclassifier=True)
+        else:
+            resume_checkpoint(previous[1][-1], net, run)
+    else:
+        start_epoch = cfg.TRAIN.START_EPOCH
+
+        #########  Parameters Initialization  #########
+        def weights_init(m):
+            classname = m.__class__.__name__
+            if classname.find('Conv') != -1:
+                if initializer == None:
+                    if run % 1000 == 1:
+                        print("####  Using xavier Initializer  ####")
+                        nn.init.xavier_normal(m.weight.data)
+                    elif run % 1000 == 3:
+                        print("####  Using kaiming normal Initializer  ####")
+                        nn.init.kaiming_normal(m.weight.data)
+                    elif run % 1000 == 2:
+                        print("####  Using normal Initializer  ####")
+                        nn.init.normal(m.weight.data)
+                    else:
+                        raise NotImplementedError("Only 2 initializer.")
+                else:
+                    raise NotimplementedError("???")
+                # nn.init.xavier_normal(m.bias.data)
+
+        if True:
+            net.apply(weights_init)
 
     criterion = nn.CrossEntropyLoss()
 
@@ -113,8 +176,13 @@ def single_train(run):
     if cfg.TRAIN.LR_SCHEDULER.SCHEDULER == 'WR':
         sche = CustomLearningRateScheduler_wr(ti=cfg.TRAIN.LR_SCHEDULER.WR_TI, lr_min=0.0001, lr_max=base_learning_rate)
     elif cfg.TRAIN.LR_SCHEDULER.SCHEDULER == 'stage':
-        sche = CustomLearningRateScheduler_staging(ti=cfg.TRAIN.LR_SCHEDULER.WR_TI, lr_min=0.0001,
+        sche = CustomLearningRateScheduler_staging(ti=cfg.TRAIN.LR_SCHEDULER.WR_TI, lr_min=0.00001,
                                                    lr_max=base_learning_rate)
+    elif cfg.TRAIN.LR_SCHEDULER.SCHEDULER == 'SGDR':
+        sche = CustomLearningRateScheduler_wr(ti=x_max_epoch, lr_min=0.00001,
+                                                   lr_max=base_learning_rate)
+    elif cfg.TRAIN.LR_SCHEDULER.SCHEDULER == 'FIXED':
+        sche
     else:
         raise ValueError('Not Implemented {}'.format(cfg.TRAIN.LR_SCHEDULER))
 
@@ -189,43 +257,106 @@ def single_train(run):
         if acc > best_acc and epoch > 50:
             best_acc = acc
             print("Saving Checkpoint, acc = {}".format(acc))
-            save_checkpoints(epoch, net)
+            save_checkpoints(epoch, net, run)
         elif epoch % cfg.TRAIN.CHECKPOINTS_EPOCHS == 0:
             print("Saving Checkpoint, acc = {}".format(acc))
+            save_checkpoints(epoch, net, run)
+        elif (epoch+1) % x_max_epoch == 0:
+            print("One Turn finished.  Saving Checkpoint, acc = {}".format(acc))
             save_checkpoints(epoch, net, run)
 
         return (test_loss / batch_idx, correct / total)
 
-    for epoch in range(start_epoch, cfg.TRAIN.SMALL_EPOCHS):
-        global global_epoch
-        global_epoch = epoch
-        is_ga = sche.adjust_learning_rate(optimizer, epoch)
-        is_ga = False
-        # print("[Debug] is_ga True")
-        train_loss, train_acc = train(epoch, is_ga)
-        test_loss, test_acc = test(epoch)
-        # with open(logname, 'a') as logfile:
-        #     logwriter = csv.writer(logfile, delimiter=',')
-        #     logwriter.writerow([epoch, train_loss, train_acc, test_loss, test_acc])
-        prefix_train = 'Train_' + str(run)
-        prefix_test = 'Test_' + str(run)
-        writer.add_scalar(prefix_test + '/val_loss', test_loss, epoch)
-        writer.add_scalar(prefix_test + '/val_acc', test_acc, epoch)
-        writer.add_scalar(prefix_train + '/loss', train_loss, epoch)
-        writer.add_scalar(prefix_train + '/acc', train_acc, epoch)
+    if training:
+        for epoch in range(start_epoch, x_max_epoch):
+            global global_epoch
+            global_epoch = epoch
+            sche.adjust_learning_rate(optimizer, epoch)
+            train_lr = optimizer.param_groups[0]['lr']
+            is_ga = mt
+            # print("[Debug] is_ga True")
+            train_loss, train_acc = train(epoch, is_ga)
+            if is_ga:
+                print("GA break training.")
+                return 0
+            test_loss, test_acc = test(epoch)
+            # with open(logname, 'a') as logfile:
+            #     logwriter = csv.writer(logfile, delimiter=',')
+            #     logwriter.writerow([epoch, train_loss, train_acc, test_loss, test_acc])
+            prefix_train = 'Train_' + str(run)
+            prefix_test = 'Test_' + str(run)
+            writer.add_scalar(prefix_test + '/val_loss', test_loss, epoch)
+            writer.add_scalar(prefix_test + '/val_acc', test_acc, epoch)
+            writer.add_scalar(prefix_train + '/loss', train_loss, epoch)
+            writer.add_scalar(prefix_train + '/acc', train_acc, epoch)
+            writer.add_scalar(prefix_train + '/lr', train_lr, epoch)
 
-    return train_loss
+    if psa and psaver is None:
+        print("\n[###] Save to Backups, run: {}\n".format( run ))
+        psaver = CustomOpm.PSaver(net.parameters(), ga_prob=0.4, converse=False)
+        psaver.step()
+
+    return
+
+
+def mutate(selected, epoch=1,save=True):
+    id = selected[0] // 1000 * 1000 + 1000
+    id_1 = selected[0]
+    id_2 = selected[1]
+    global net
+    global psaver
+    assert net is not None,'11111'
+    assert psaver is not None,'22222'
+
+    psaver.step(save=False, mute=True)
+
+    save_checkpoints(epoch, net, id)
+    return id
+
+def simple_mutate(id, epoch=1, save=True):
+    global net
+    global psaver
+    print("[###] Execute Common mutation....")
+    psaver.step(save=False, mute=True)
+    save_checkpoints(epoch, net, id)
+    return id
+
+def GA(checkpoints):
+    # select two ckpts
+    assert len(checkpoints) >= 2, 'Need at least 2 Checkpoints .'
+    if len(checkpoints) == 2:
+        selected = checkpoints
+    else:
+        select_idx = np.random.randint(len(checkpoints), 2)
+        selected = [checkpoints[select_idx[0]], checkpoints[select_idx[1]]]
+    id = mutate(selected, save=True)  # mutate and run
+
+    single_train(id)
+
 
 
 def mtrain():
-    num_runs = cfg.NUM_RUNS
-    losses = np.zeros(num_runs)
-    for i in range(cfg.TRAIN.MAX_EPOCHS // num_runs):
-        for run in range(num_runs):
-            loss = single_train(run)
-            losses[run] = loss
-            GA(losses)
+    # num_runs = cfg.NUM_RUNS
+    # losses = np.zeros(num_runs)
+    # for i in range(cfg.TRAIN.MAX_EPOCHS // num_runs):
+    #     for run in range(num_runs):
+    #         loss = single_train(run)
+    #         losses[run] = loss
+    #         GA(losses)
+    population = 2
+    ids = [1001, 1002]
+    # loss = single_train(ids[0], training=True)
 
+    # loss = single_train(3001, training=False, load_bone=True , psa=True)
+    for x in range(1):  # just run once
+        x += 1
+        # for i in range(population):
+        #     id = x * 1000 + i + 1
+        #     loss = single_train(id, training=True)
+        #     ids.append(id)
+        loss = single_train(1001, training=True, x_max_epoch=cfg.TRAIN.MAX_EPOCHS * x)
+        # GA(ids)
+        # simple_mutate(1001, epoch=50*x)
 
-
-    writer.close()
+# def mute_train():
+#     single_train(1000, training=True)

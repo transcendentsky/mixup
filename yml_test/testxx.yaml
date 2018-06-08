@@ -1,0 +1,39 @@
+!!python/object/new:config_parse.AttrDict
+dictitems:
+  CHECKPOINTS_PREFIX: !!python/unicode 'VGG19_cifar10'
+  DATASET: !!python/object/new:config_parse.AttrDict
+    dictitems: {DATASET: !!python/unicode 'cifar10'}
+  EXP_DIR: !!python/unicode ''
+  LOG_DIR: !!python/unicode ''
+  MODEL: !!python/object/new:config_parse.AttrDict
+    dictitems: {NET: !!python/unicode 'VGG19', NUM_CLASSES: 10}
+  NUM_RUNS: 10
+  PHASE: [!!python/unicode 'train', !!python/unicode 'eval', !!python/unicode 'test']
+  RESUME_CHECKPOINT: !!python/unicode ''
+  SESS: !!python/unicode 'mixup_default'
+  TEST: !!python/object/new:config_parse.AttrDict
+    dictitems:
+      BATCH_SIZE: 128
+      TEST_SCOPE: [0, 1000]
+  TRAIN: !!python/object/new:config_parse.AttrDict
+    dictitems:
+      BATCH_SIZE: 128
+      CHECKPOINTS_EPOCHS: 10
+      GA: false
+      LABEL_SM: false
+      LR_SCHEDULER: !!python/object/new:config_parse.AttrDict
+        dictitems: {GAMMA: 2.0, SCHEDULER: !!python/unicode 'WR', WARM_UP_EPOCHS: 300,
+          WR_TI: 10}
+      MAX_EPOCHS: 300
+      MIXUP: !!python/unicode 'mixup'
+      MIXUP_ALPHA: 0.0
+      NUM_WORKERS: 2
+      OPTIMIZER: !!python/object/new:config_parse.AttrDict
+        dictitems: {BASE_LR: 0.1, MOMENTUM: 0.9, OPTIMIZER: !!python/unicode 'sgd',
+          WEIGHT_DECAY: 0.0005}
+      RESUME_SCOPE: [0, 1000]
+      SEED: 0
+      START_EPOCH: 0
+      TEST_STEP: 1
+      VERBOSE: true
+      WEIGHT_DECAY: 0.0001

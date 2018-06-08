@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 
-cfg = {
+vggcfg = {
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG13': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG16': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
@@ -13,20 +13,27 @@ cfg = {
 
 
 class VGG(nn.Module):
-    def __init__(self, vgg_name):
+    def __init__(self, vgg_name, in_channel=3, out_channel=10):
         super(VGG, self).__init__()
-        self.features = self._make_layers(cfg[vgg_name])
-        self.classifier = nn.Linear(512, 10)
+        self.features = self._make_layers(vggcfg[vgg_name], in_channel=in_channel)
+        self.classifier = nn.Linear(512, out_channel)
+        # self.extra_classifier = False
+        # if out_channel != 10:
+        #     self.extra_classifier = True
+        #     self.classifier2 = nn.Linear(512, out_channel)
 
     def forward(self, x):
         out = self.features(x)
         out = out.view(out.size(0), -1)
-        out = self.classifier(out)
-        return out
+        out1 = self.classifier(out)
+        # if self.extra_classifier:
+        #     out2 = self.classifier2(out)
+        #     return out2
+        return out1
 
-    def _make_layers(self, cfg):
+    def _make_layers(self, cfg, in_channel=3):
         layers = []
-        in_channels = 3
+        in_channels = in_channel
         for x in cfg:
             if x == 'M':
                 layers += [nn.MaxPool2d(kernel_size=2, stride=2)]

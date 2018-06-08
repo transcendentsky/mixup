@@ -24,17 +24,18 @@ class CustomLearningRateScheduler_staging(object):
         self._lr_max = lr_max
         self.base = 0
         self.writer = get_writer()
+        self.lr = lr_max
         print("##########  Using CustomLearningRateScheduler1 : Staging lr Schedule ##########\n")
 
     def adjust_learning_rate(self, optimizer, epoch):
         """decrease the learning rate at 100 and 150 epoch"""
-        lr = 0.1
+        lr = self.lr
         if epoch <= 9 and lr > 0.1:
             # warm-up training for large minibatch
             lr = 0.1 + (0.2 - 0.1) * epoch / 10.
-        if epoch >= 100:
-            lr /= 10
         if epoch >= 150:
+            lr /= 10
+        if epoch >= 200:
             lr /= 10
         print("Learning rate = ", lr)
         self.writer.add_scalar("Train/Learning rate", lr, epoch)
@@ -46,26 +47,30 @@ class CustomLearningRateScheduler_staging(object):
         else:return False
 
 class CustomLearningRateScheduler_wr(object):
-    def __init__(self, ti=10, lr_min=0.001, lr_max=0.1):
+    def __init__(self, ti=10, lr_min=0.001, lr_max=0.1, gamma=2, beta=1.0):
         self.ti = ti
         self._lr_min = lr_min
         self._lr_max = lr_max
         self.base = 0
+        self.gamma = gamma
+        self.ratio = 1.0
+        self.beta = beta
         self.writer = get_writer()
         print("##########  Using CustomLearningRateScheduler2 : Warm restart ##########\n")
 
-    def adjust_learning_rate(self, optimizer, epoch):
-        ga = False
-        lr_max = self._lr_max
-        lr_min = self._lr_min
+    def set_base(self,epoch):
         if epoch >= self.ti + self.base:
             self.base += self.ti
-            ga = True  # evolutionary strategy
-            if self.ti < 50:
-                self.ti = self.ti * 2
-            else:
-                pass
+            self.ti = self.ti * self.gamma
+            self.ratio = self.ratio * self.beta
+            return self.set_base(epoch)
+        else:
+            return
 
+    def adjust_learning_rate(self, optimizer, epoch):
+        self.set_base(epoch)
+        lr_max = self._lr_max
+        lr_min = self._lr_min
         epoch_n = epoch - self.base
         lr = lr_min + (lr_max - lr_min) * (np.cos(epoch_n * np.pi / self.ti / 2))
 
@@ -75,7 +80,7 @@ class CustomLearningRateScheduler_wr(object):
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
 
-        return ga
+        return 0
 
 
 class CustomLearningRateScheduler_own(object):

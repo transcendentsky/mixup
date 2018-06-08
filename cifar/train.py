@@ -16,8 +16,9 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 from torch.autograd import Variable
 
-from utils.config_parse import cfg_from_file
-from easy_mixup import _train
+from utils.config_parse import cfg_from_file, cfg
+from multitrain import mtrain, single_train
+from train_entry import SingleTrain, MultiTrain
 
 def parse_args():
     """
@@ -34,11 +35,17 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def train():
+
+if __name__ == '__main__':
+
     args = parse_args()
     if args.config_file is not None:
         cfg_from_file(args.config_file)
-    _train()
 
-if __name__ == '__main__':
-    train()
+    assert cfg.STRATEGY != None, 'No Strategy Setted.'
+    if cfg.STRATEGY == 'multi':
+        m = MultiTrain()
+        m.multi_train()
+    elif cfg.STRATEGY == 'single':
+        s = SingleTrain(1001)
+        s.single_train()

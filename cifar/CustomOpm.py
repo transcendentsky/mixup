@@ -205,53 +205,11 @@ class Adam(Optimizer):
 
 
 class GSGD(Optimizer):
-    r"""Implements stochastic gradient descent (optionally with momentum).
-
-    Nesterov momentum is based on the formula from
-    `On the importance of initialization and momentum in deep learning`__.
-
-    Args:
-        params (iterable): iterable of parameters to optimize or dicts defining
-            parameter groups
-        lr (float): learning rate
-        momentum (float, optional): momentum factor (default: 0)
-        weight_decay (float, optional): weight decay (L2 penalty) (default: 0)
-        dampening (float, optional): dampening for momentum (default: 0)
-        nesterov (bool, optional): enables Nesterov momentum (default: False)
-
-    Example:
-        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
-        >>> optimizer.zero_grad()
-        >>> loss_fn(model(input), target).backward()
-        >>> optimizer.step()
-
-    __ http://www.cs.toronto.edu/%7Ehinton/absps/momentum.pdf
-
-    .. note::
-        The implementation of SGD with Momentum/Nesterov subtly differs from
-        Sutskever et. al. and implementations in some other frameworks.
-
-        Considering the specific case of Momentum, the update can be written as
-
-        .. math::
-                  v = \rho * v + g \\
-                  p = p - lr * v
-
-        where p, g, v and :math:`\rho` denote the parameters, gradient,
-        velocity, and momentum respectively.
-
-        This is in contrast to Sutskever et. al. and
-        other frameworks which employ an update of the form
-
-        .. math::
-             v = \rho * v + lr * g \\
-             p = p - v
-
-        The Nesterov version is analogously modified.
-    """
 
     def __init__(self, params, lr=required, momentum=0, dampening=0,
-                 weight_decay=0, nesterov=False, ga_prob=1.0):
+                 weight_decay=0,alpha=0.8, nesterov=False, ga_prob=1.0):
+        self.ga_prob = ga_prob
+        self.alpha = alpha
         print("#####  Using GSGD  #####")
         defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
                         weight_decay=weight_decay, nesterov=nesterov, ga_prob=ga_prob)
@@ -285,7 +243,6 @@ class GSGD(Optimizer):
             momentum = group['momentum']
             dampening = group['dampening']
             nesterov = group['nesterov']
-            ga_prob = group['ga_prob']
 
             for p in group['params']:
                 if p.grad is None:
@@ -305,11 +262,11 @@ class GSGD(Optimizer):
                 if is_ga and gstep > 99:
                     # if is_ga and gstep >=1:
                     # print("[Debug] Test Crossing and mutating......")
-                    if np.random.random() <= ga_prob:
+                    if np.random.random() <= self.ga_prob:
                         if 'ga_buffer' not in param_state:
                             raise ValueError("Not Save ga_buffer......")
                         ga_buf = param_state['ga_buffer']
-                        p.data.mul_(2.0).add_(-ga_buf)
+                        p.data.mul_(1.0+self.alpha).add_(-ga_buf)
                         continue
 
 
@@ -386,50 +343,6 @@ class GSGD(Optimizer):
 
 
 class CSGD(Optimizer):
-    r"""Implements stochastic gradient descent (optionally with momentum).
-
-    Nesterov momentum is based on the formula from
-    `On the importance of initialization and momentum in deep learning`__.
-
-    Args:
-        params (iterable): iterable of parameters to optimize or dicts defining
-            parameter groups
-        lr (float): learning rate
-        momentum (float, optional): momentum factor (default: 0)
-        weight_decay (float, optional): weight decay (L2 penalty) (default: 0)
-        dampening (float, optional): dampening for momentum (default: 0)
-        nesterov (bool, optional): enables Nesterov momentum (default: False)
-
-    Example:
-        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
-        >>> optimizer.zero_grad()
-        >>> loss_fn(model(input), target).backward()
-        >>> optimizer.step()
-
-    __ http://www.cs.toronto.edu/%7Ehinton/absps/momentum.pdf
-
-    .. note::
-        The implementation of SGD with Momentum/Nesterov subtly differs from
-        Sutskever et. al. and implementations in some other frameworks.
-
-        Considering the specific case of Momentum, the update can be written as
-
-        .. math::
-                  v = \rho * v + g \\
-                  p = p - lr * v
-
-        where p, g, v and :math:`\rho` denote the parameters, gradient,
-        velocity, and momentum respectively.
-
-        This is in contrast to Sutskever et. al. and
-        other frameworks which employ an update of the form
-
-        .. math::
-             v = \rho * v + lr * g \\
-             p = p - v
-
-        The Nesterov version is analogously modified.
-    """
 
     def __init__(self, params, lr=required, momentum=0, dampening=0,
                  weight_decay=0, nesterov=False, ga_prob=0.1):
@@ -475,7 +388,7 @@ class CSGD(Optimizer):
                     d_p = d_p.add(weight_decay, p.data)
                 param_state = self.state[p]
 
-                if is_ga and gstep > 99:
+                if is_ga :
                     if len(p.data.shape) == 4 and np.random.random() < 0.5:
                         outdim = p.data.shape[0]
                         indim = p.data.shape[1]
@@ -508,3 +421,102 @@ class CSGD(Optimizer):
                 if is_ga == False:
                     p.data.add_(-group['lr'], d_p)
         return loss, check_grad, check_g2, check_b2
+
+
+class PSaver(Optimizer):
+
+    def __init__(self, params, lr=0.01, momentum=0, dampening=0,
+                 weight_decay=0, nesterov=False,
+                 ga_prob=0.1, alpha=0.8,
+                 converse=False):
+        self.converse = converse
+        if converse:
+            self.ga_prob = 1.0 - ga_prob
+        else:
+            self.ga_prob = ga_prob
+        self.alpha = alpha
+        defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
+                        weight_decay=weight_decay, nesterov=nesterov, ga_prob=ga_prob)
+        if nesterov and (momentum <= 0 or dampening != 0):
+            raise ValueError("Nesterov momentum requires a momentum and zero dampening")
+        super(PSaver, self).__init__(params, defaults)
+
+    def __setstate__(self, state):
+        super(PSaver, self).__setstate__(state)
+        for group in self.param_groups:
+            group.setdefault('nesterov', False)
+
+    def step(self, save=True, mute=False):
+        for group in self.param_groups:
+            length = len(group)
+            for i,p in enumerate(group['params']):
+                param_state = self.state[p]
+
+                # ################################  store params before warm restart   ##########################
+                if save:
+                    print("Store params to backups")
+                    if 'ga_buffer' not in param_state:
+                        # print("Create Ga_buffer")
+                        ga_buf = param_state['ga_buffer'] = torch.zeros_like(p.data)
+                        ga_buf.add_(p.data)
+                    else:
+                        ga_buf = param_state['ga_buffer']
+                        ga_buf.zero_()
+                        ga_buf.add_(p.data)
+                    continue
+                else:
+                    if i >= length - 2:
+                        if self.converse:
+                            p.data.copy_(ga_buf)
+                        continue
+                    if self.converse:
+                        if np.random.random() <= self.ga_prob:
+                            print("Mutating...")
+                            if 'ga_buffer' not in param_state:
+                                raise ValueError("Not Save ga_buffer......")
+                            ga_buf = param_state['ga_buffer']
+                            p.data.mul_(self.alpha).add_(-ga_buf*(self.alpha+1.0))
+                        else:
+                            p.data.copy_(ga_buf)
+                    else:
+                        if np.random.random() <= self.ga_prob:
+                            print("Mutating...")
+                            if 'ga_buffer' not in param_state:
+                                raise ValueError("Not Save ga_buffer......")
+                            ga_buf = param_state['ga_buffer']
+                            p.data.mul_(1.0+self.alpha).add_(-ga_buf*self.alpha)
+                    continue
+
+        return 0
+
+
+
+class Mutator(Optimizer):
+
+    def __init__(self, params, lr=0.01, momentum=0, dampening=0,
+                 weight_decay=0,alpha=0.8, ga_prob=1.0):
+        self.ga_prob = ga_prob
+        self.alpha = alpha
+        print("#####  Using Mutator  #####")
+        defaults = dict(lr=lr, momentum=momentum, dampening=dampening,
+                        weight_decay=weight_decay, ga_prob=ga_prob)
+        super(Mutator, self).__init__(params, defaults)
+
+    def __setstate__(self, state):
+        super(Mutator, self).__setstate__(state)
+
+    def step(self, is_ga=True):
+
+        for group in self.param_groups:
+            for p in group['params']:
+                param_state = self.state[p]
+                #################################   cross and mutation   ##############################
+                if is_ga:
+                    if np.random.random() <= self.ga_prob:
+                        if 'ga_buffer' not in param_state:
+                            raise ValueError("Not Save ga_buffer......")
+                        ga_buf = param_state['ga_buffer']
+                        p.data.mul_(1.0+self.alpha).add_(-ga_buf*self.alpha)
+                        continue
+
+        return 0

@@ -37,7 +37,6 @@ cfg = __C
 
 __C.SESS = 'mixup_default'
 __C.NUM_RUNS = 10
-__C.STRATEGY = None
 
 __C.MODEL = AttrDict()
 __C.MODEL.NET = 'VGG19'
@@ -69,7 +68,7 @@ __C.TRAIN.LR_SCHEDULER.GAMMA = 2.0
 
 __C.TRAIN.SEED = 0
 
-__C.TRAIN.MIXUP = 'nomix'  # 'mixup' or 'nomix'
+__C.TRAIN.MIXUP = 'mixup'  # 'mixup' or 'nomix'
 __C.TRAIN.MIXUP_ALPHA = 0.0
 
 __C.TRAIN.WEIGHT_DECAY = 1e-4
@@ -90,7 +89,6 @@ __C.TEST.TEST_SCOPE = [0, 1000]
 
 __C.DATASET = AttrDict()
 __C.DATASET.DATASET = 'cifar10'
-__C.DATASET.DATASET_PRE = 'mnist'
 
 # ---------------------------------------------------------------------------- #
 # Export options

@@ -2,20 +2,20 @@ MODEL:
   NET: VGG19
 
 TRAIN:
-  MAX_EPOCHS: 400
-  CHECKPOINTS_EPOCHS: 200
+  MAX_EPOCHS: 150
+  CHECKPOINTS_EPOCHS: 30
   BATCH_SIZE: 128 #32
   OPTIMIZER:
     OPTIMIZER: sgd
-    BASE_LR: 0.01
-    MOMENTUM: 0.0
+    BASE_LR: 0.1
+    MOMENTUM: 0.9
     WEIGHT_DECAY: 0.0005
   LR_SCHEDULER:
-    SCHEDULER: WR
+    SCHEDULER: SGDR
 #    SCHEDULER: SGDR
     WARM_UP_EPOCHS: 300
     WR_TI: 10
-  MIXUP: 'mixup'
+#  MIXUP: 'mixup'
   GA: True
   TEST_STEP: 1
   MIXUP: 'mixup'
@@ -27,5 +27,13 @@ TEST:
 DATASET:
   DATASET: 'cifar10'
 
+EXP_DIR: 'results/with_GA/nomix/sgdr'
 PHASE: ['train', 'test']
 NUM_RUNS: 10
+
+# not trained the first Net, with only initialization, xavier
+# trained second Net,
+# and Mutate them with p = p + (p-g)* alpha
+# with ga_pro = 0.1
+
+# From 280 Epoch, change to swish
