@@ -37,7 +37,7 @@ cfg = __C
 
 __C.SESS = 'mixup_default'
 __C.NUM_RUNS = 10
-__C.STRATEGY = None
+__C.STRATEGY = ''
 
 __C.MODEL = AttrDict()
 __C.MODEL.NET = 'VGG19'
@@ -72,7 +72,6 @@ __C.TRAIN.SEED = 0
 __C.TRAIN.MIXUP = 'nomix'  # 'mixup' or 'nomix'
 __C.TRAIN.MIXUP_ALPHA = 0.0
 
-__C.TRAIN.WEIGHT_DECAY = 1e-4
 __C.TRAIN.NUM_WORKERS = 2
 
 __C.TRAIN.VERBOSE = True

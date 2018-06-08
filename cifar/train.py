@@ -42,7 +42,7 @@ if __name__ == '__main__':
     if args.config_file is not None:
         cfg_from_file(args.config_file)
 
-    assert cfg.STRATEGY != None, 'No Strategy Setted.'
+    assert cfg.STRATEGY != '', 'No Strategy Setted.'
     if cfg.STRATEGY == 'multi':
         m = MultiTrain()
         m.multi_train()

@@ -46,19 +46,19 @@ class SingleTrain(object):
 
         # init from cfg
         self.dataset = cfg.DATASET.DATASET
-        self.base_learning_rate = cfg.TRAIN.BASE_LR
+        self.base_learning_rate = cfg.TRAIN.OPTIMIZER.BASE_LR
         self.batch_size = cfg.TRAIN.BATCH_SIZE
         self.start_epoch = cfg.TRAIN.START_EPOCH
         self.model_class = cfg.MODEL.NET
         self.num_workers = cfg.TRAIN.NUM_WORKERS
         self.lr_sche_wr_ti = cfg.TRAIN.LR_SCHEDULER.WR_TI
+        self.learning_sche = cfg.TRAIN.LR_SCHEDULER.SCHEDULER
         if self.x_max_epoch == 0:
             self.x_max_epoch = cfg.TRAIN.MAX_EPOCHS
 
         # self.using_mixup = None
         self.optimizer = None
         self.psaver = None
-        self.learning_sche = None
         self.base_acc = 0
         self.use_cuda = True
         self.trainloader = None
@@ -85,9 +85,12 @@ class SingleTrain(object):
         self.init_lr_sche()
         self.init_optimizer()
 
+        self.check_status()
+
     def check_status(self):
         assert self.net != None, "Network Setting Error"
         assert self.writer != None, "Logfile Writer Setting Error"
+        assert self.optimizer != None, "Optimizer Setting Error"
         # assert
 
     def init_datasets(self):
@@ -176,23 +179,23 @@ class SingleTrain(object):
             resume_checkpoint(previous[1][-1], net, self.run, noclassifier=self.load_bone)
         else:
             #########  Parameters Initialization  #########
-            def weights_init(m, initializer):
+            def weights_init(m):
                 classname = m.__class__.__name__
                 if classname.find('Conv') != -1:
-                    if initializer == 'xavier':
+                    if self.initializer == 'xavier':
                         print("####  Using xavier Initializer  ####")
                         nn.init.xavier_normal(m.weight.data)
-                    elif initializer == 'kaiming_normal':
+                    elif self.initializer == 'kaiming_normal':
                         print("####  Using kaiming normal Initializer  ####")
                         nn.init.kaiming_normal(m.weight.data)
-                    elif initializer == 'normal':
+                    elif self.initializer == 'normal':
                         print("####  Using normal Initializer  ####")
                         nn.init.normal(m.weight.data)
                     else:
                         raise NotImplementedError("Only 2 initializer.")
 
             if True:
-                self.net.apply(weights_init, self.initializer)
+                self.net.apply(weights_init)
 
     def init_lr_sche(self):
         if self.learning_sche == 'WR':
@@ -290,8 +293,8 @@ class SingleTrain(object):
         return (test_loss / batch_idx, correct / total)
 
     def init_optimizer(self):
-        optimizer = CustomOpm.CSGD(net.parameters(), lr=self.base_learning_rate, momentum=cfg.TRAIN.OPTIMIZER.MOMENTUM,
-                                   weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+        self.optimizer = CustomOpm.CSGD(self.net.parameters(), lr=self.base_learning_rate, momentum=cfg.TRAIN.OPTIMIZER.MOMENTUM,
+                                   weight_decay=cfg.TRAIN.OPTIMIZER.WEIGHT_DECAY)
 
     def single_train(self):
         if self.training:
