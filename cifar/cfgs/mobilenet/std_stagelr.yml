@@ -1,5 +1,7 @@
+STRATEGY: 'single'
+
 MODEL:
-  NET: VGG19
+  NET: MobileNet
 
 TRAIN:
   MAX_EPOCHS: 250
@@ -11,26 +13,22 @@ TRAIN:
     MOMENTUM: 0.9
     WEIGHT_DECAY: 0.0005
   LR_SCHEDULER:
-    SCHEDULER: stage
-#    SCHEDULER: SGDR
+    SCHEDULER: 'stage'
+    STAGES: [60,120,160]
     WARM_UP_EPOCHS: 300
-    WR_TI: 50
-#  MIXUP: 'mixup'
-  GA: True
+    WR_TI: 10
+#  GA: True
   TEST_STEP: 1
-#  MIXUP: 'mixup'
 
 TEST:
   BATCH_SIZE: 128
   TEST_SCOPE: [0, 500]
 
 DATASET:
-  DATASET: 'cifar100'
+  DATASET: 'cifar10'
 
-EXP_DIR: 'results/with_GA/cifar100/stdlr/2'
+EXP_DIR: 'results/with_GA/mobilenet/std_stage_lr2'
 PHASE: ['train', 'test']
 NUM_RUNS: 10
 
-# mutation like warm restart, that when using restart, replace with mutation
-
-# From 280 Epoch, change to swish
+# Trained with fixed learning rate = 0.1 ,

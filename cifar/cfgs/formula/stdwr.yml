@@ -1,0 +1,36 @@
+MODEL:
+  NET: LeNet
+
+TRAIN:
+  MAX_EPOCHS: 200
+  CHECKPOINTS_EPOCHS: 30
+  BATCH_SIZE: 128 #32
+  OPTIMIZER:
+    OPTIMIZER: sgd
+    BASE_LR: 0.1
+    MOMENTUM: 0.9
+    WEIGHT_DECAY: 0.0005
+  LR_SCHEDULER:
+    SCHEDULER: WR
+    WR_TI: 60
+    WR_GAMMA: 2.0
+    WR_BETA: 0.8
+#    STAGES: [60,120,180]
+#  GA: True
+  TEST_STEP: 1
+
+TEST:
+  BATCH_SIZE: 128
+  TEST_SCOPE: [0, 500]
+
+DATASET:
+  DATASET: 'cifar10'
+
+EXP_DIR: 'results/with_GA/formula/lenet/wr2'
+PHASE: ['train', 'test']
+NUM_RUNS: 10
+STRATEGY: 'single'
+
+# mutation like warm restart, that when using restart, replace with mutation
+
+# From 280 Epoch, change to swish
