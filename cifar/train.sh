@@ -1,3 +1,9 @@
-python neasy_mixup.py --sess nomixwr -w
-python neasy_mixup.py --alpha 1.0
-python neasy_mixup.py --sess nomix 11
+# wocao
+CFG_PATH=./cfgs/accord_std/
+
+FILES=$(ls $CFG_PATH)
+echo $FILES
+for i in $FILES; do
+    echo $i
+    python train.py --cfg=$CFG_PATH$i
+done

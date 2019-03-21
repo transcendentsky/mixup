@@ -1,0 +1,33 @@
+MODEL:
+  NET: VGG19_RRFB
+
+TRAIN:
+  MAX_EPOCHS: 250
+  CHECKPOINTS_EPOCHS: 30
+  BATCH_SIZE: 128 #32
+#  MIXUP: 'mixup'
+  OPTIMIZER:
+    OPTIMIZER: sgd
+    BASE_LR: 0.1
+    MOMENTUM: 0.9
+    WEIGHT_DECAY: 0.0005
+  LR_SCHEDULER:
+    SCHEDULER: stage
+    WARM_UP_EPOCHS: 300
+    WR_TI: 50
+    STAGES: [100,150]
+  GA: True
+  TEST_STEP: 1
+
+TEST:
+  BATCH_SIZE: 128
+  TEST_SCOPE: [0, 500]
+
+DATASET:
+  DATASET: 'cifar10'
+
+EXP_DIR: 'results/RFB_conv/RRFB/sgd/cifar10'
+PHASE: ['train', 'test']
+#PHASE: ['test']
+NUM_RUNS: 10
+STRATEGY: 'single'

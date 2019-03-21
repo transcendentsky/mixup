@@ -1,0 +1,36 @@
+MODEL:
+  NET: ResNet50
+
+TRAIN:
+  MAX_EPOCHS: 250
+  CHECKPOINTS_EPOCHS: 100
+  BATCH_SIZE: 32 #128 #32
+#  MIXUP: 'mixup'
+  OPTIMIZER:
+    OPTIMIZER: sgd
+    BASE_LR: 0.1
+    MOMENTUM: 0.9
+    WEIGHT_DECAY: 0.0005
+  LR_SCHEDULER:
+    SCHEDULER: stage
+    WARM_UP_EPOCHS: 300
+    WR_TI: 50
+    STAGES: [100,150]
+  TEST_STEP: 1
+
+TEST:
+  BATCH_SIZE: 128
+  TEST_SCOPE: [0, 500]
+
+DATASET:
+  DATASET: 'cifar10'
+
+EXP_DIR: 'results/dbmix/sgd/res50/cifar10'
+PHASE: ['train', 'test']
+#PHASE: ['test']
+NUM_RUNS: 1
+STRATEGY: 'single'
+FIXED_LAM: 0.05
+BMIX: True
+
+# blocksize = 3

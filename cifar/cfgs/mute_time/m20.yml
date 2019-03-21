@@ -1,0 +1,37 @@
+MODEL:
+  NET: VGG19
+
+TRAIN:
+  MAX_EPOCHS: 150
+  CHECKPOINTS_EPOCHS: 30
+  BATCH_SIZE: 128 #32
+  OPTIMIZER:
+    OPTIMIZER: sgd
+    BASE_LR: 0.1
+    MOMENTUM: 0.9
+    WEIGHT_DECAY: 0.0005
+  LR_SCHEDULER:
+    SCHEDULER: stage
+    STAGES: [80, 120]
+    WARM_UP_EPOCHS: 300
+    WR_TI: 50
+  GA: True
+  TEST_STEP: 1
+  MUTATION:
+    STAGES: [20,150]
+
+TEST:
+  BATCH_SIZE: 128
+  TEST_SCOPE: [0, 500]
+
+DATASET:
+  DATASET: 'cifar10'
+
+EXP_DIR: 'results/with_GA/mute_time/m20_fixed'
+PHASE: ['train', 'test']
+NUM_RUNS: 10
+STRATEGY: 'mute_with_inited_model'
+
+# mutation like warm restart, that when using restart, replace with mutation
+
+# From 280 Epoch, change to swish
